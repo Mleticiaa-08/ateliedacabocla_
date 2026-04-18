@@ -345,10 +345,11 @@ export default function Home() {
         <div className="grid grid-cols-2 gap-4">
           {filteredMore.map(item => (
             <div key={item.id} className="bg-white p-3 rounded-2xl">
-              <img
-                src={item.image}
-                className="h-40 w-full rounded-xl"
-              />
+               <img
+                 src={item.image}
+                 className="h-40 w-full rounded-xl cursor-pointer"
+                 onClick={() => setSelectedImage(item.image)}
+                />
               <p>{item.name}</p>
               <p>{formatBRL(item.price)}</p>
               <button
@@ -445,6 +446,23 @@ export default function Home() {
           </>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+  {selectedImage && (
+        <>
+          <motion.div
+            className="fixed inset-0 bg-black/70 z-50"
+            onClick={() => setSelectedImage(null)}
+          />
+
+          <motion.img
+            src={selectedImage}
+            className="fixed top-1/2 left-1/2 max-w-[90%] max-h-[90%] z-50 rounded-2xl"
+            style={{ transform: "translate(-50%, -50%)" }}
+          />
+        </>
+      )}
+    </AnimatePresence>
     </div>
   );
 }
