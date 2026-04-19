@@ -6,7 +6,9 @@ export default function Login() {
   const [senha, setSenha] = useState("");
   const navigate = useNavigate();
 
-  function handleLogin() {
+  function handleLogin(e) {
+    e.preventDefault(); // 🔥 evita recarregar
+
     const users = JSON.parse(localStorage.getItem("users")) || [];
   
     const userFound = users.find(
@@ -18,12 +20,12 @@ export default function Login() {
       return;
     }
   
-    // 🔥 SALVA USUÁRIO LOGADO
+    // 🔥 salva usuário logado
     localStorage.setItem("user", JSON.stringify(userFound));
   
     alert("Login realizado!");
   
-    window.location.href = "/"; // volta pra home
+    window.location.href = "/"; // mantido como você fez
   }
 
   return (

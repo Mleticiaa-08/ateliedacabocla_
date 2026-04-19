@@ -7,7 +7,9 @@ export default function Cadastro() {
   const [senha, setSenha] = useState("");
   const navigate = useNavigate();
 
-  function handleCadastro() {
+  function handleCadastro(e) {
+    e.preventDefault(); // 🔥 evita recarregar a página
+
     const users = JSON.parse(localStorage.getItem("users")) || [];
   
     const alreadyExists = users.find(u => u.email === email);
@@ -20,7 +22,7 @@ export default function Cadastro() {
     const newUser = {
       nome,
       email,
-      password
+      senha // 🔥 CORRIGIDO (era password)
     };
   
     users.push(newUser);
@@ -29,23 +31,50 @@ export default function Cadastro() {
   
     alert("Cadastro realizado!");
   
-    window.location.href = "/login";
+    window.location.href = "/login"; // mantido como você fez
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-green-50">
       <form onSubmit={handleCadastro} className="bg-white p-6 rounded-2xl shadow-md w-80 space-y-4" >
         <h2 className="text-xl font-semibold text-center">Cadastro</h2>
-        <input type="text" placeholder="Nome" className="w-full border p-2 rounded" value={nome} onChange={e => setNome(e.target.value)}/>
-        <input type="email" placeholder="Email" className="w-full border p-2 rounded" value={email} onChange={e => setEmail(e.target.value)} />
-        <input type="password" placeholder="Senha" className="w-full border p-2 rounded" value={senha} onChange={e => setSenha(e.target.value)} />
+
+        <input 
+          type="text" 
+          placeholder="Nome" 
+          className="w-full border p-2 rounded" 
+          value={nome} 
+          onChange={e => setNome(e.target.value)}
+        />
+
+        <input 
+          type="email" 
+          placeholder="Email" 
+          className="w-full border p-2 rounded" 
+          value={email} 
+          onChange={e => setEmail(e.target.value)} 
+        />
+
+        <input 
+          type="password" 
+          placeholder="Senha" 
+          className="w-full border p-2 rounded" 
+          value={senha} 
+          onChange={e => setSenha(e.target.value)} 
+        />
 
         <button className="w-full bg-emerald-600 text-white py-2 rounded-xl">
           Cadastrar
         </button>
 
         <p className="text-sm text-center">
-          Já tem conta?{" "} <span className="text-emerald-600 cursor-pointer" onClick={() => navigate("/login")}> Entrar </span>
+          Já tem conta?{" "}
+          <span 
+            className="text-emerald-600 cursor-pointer" 
+            onClick={() => navigate("/login")}
+          >
+            Entrar
+          </span>
         </p>
       </form>
     </div>
