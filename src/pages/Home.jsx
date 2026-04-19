@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "../components/Header";
 
@@ -240,229 +240,253 @@ const MORE_PRODUCTS = [
 ];
 
 const ALL_PRODUCTS = [...PRODUCTS, ...MORE_PRODUCTS];
-
-
 function formatBRL(value) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 }
 
 export default function Home() {
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState("todos");
-  const [cartIds, setCartIds] = useState(new Set());
+  const [category, setCategory] = useState("todos");
+  const [cart, setCart] = useState({});
   const [cartOpen, setCartOpen] = useState(false);
-  const [checkoutOpen, setCheckoutOpen] = useState(false); // ✅ CORREÇÃO
+  const [user, setUser] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
 
-  const [customerData, setCustomerData] = useState({
-    nome: "",
-    telefone: "",
-    endereco: ""
-  });
+  // 🔥 usuário
+  useEffect(() => {
+    const savedUser = JSON.parse(localStorage.getItem("user"));
+    setUser(savedUser);
+  }, []);
 
+  // 🔥 carregar carrinho
+  useEffect(() => {
+    if (user) {
+      const savedCart =
+        JSON.parse(localStorage.getItem("cart_" + user.email)) || {};
+      setCart(savedCart);
+    }
+  }, [user]);
+
+  // 🔥 salvar carrinho
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("cart_" + user.email, JSON.stringify(cart));
+    }
+  }, [cart, user]);
+
+  // 🔥 filtro
   const filteredProducts = useMemo(() => {
-    let filtered = PRODUCTS;
-    if (activeCategory !== "todos") {
-      filtered = filtered.filter(p => p.category === activeCategory);
-    }
-    if (search) {
-      filtered = filtered.filter(p =>
-        p.name.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-    return filtered;
-  }, [search, activeCategory]);
+    return ALL_PRODUCTS.filter((p) => {
+      const matchSearch = p.name
+        .toLowerCase()
+        .includes(search.toLowerCase());
 
-  const filteredMore = useMemo(() => {
-    let filtered = MORE_PRODUCTS;
-    if (activeCategory !== "todos") {
-      filtered = filtered.filter(p => p.category === activeCategory);
-    }
-    if (search) {
-      filtered = filtered.filter(p =>
-        p.name.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-    return filtered;
-  }, [search, activeCategory]);
+      const matchCategory =
+        category === "todos" || p.category === category;
 
-  const cartItems = ALL_PRODUCTS.filter(p => cartIds.has(p.id));
-  const total = cartItems.reduce((acc, item) => acc + item.price, 0);
+      return matchSearch && matchCategory;
+    });
+  }, [search, category]);
+
+  const cartItems = ALL_PRODUCTS.filter((p) => cart[p.id]);
+
+  const total = cartItems.reduce(
+    (acc, item) => acc + item.price * cart[item.id],
+    0
+  );
 
   function addToCart(id) {
-    setCartIds(prev => new Set(prev).add(id));
+    if (!user) {
+      alert("Você precisa estar logado!");
+      return;
+    }
+
+    setCart((prev) => ({
+      ...prev,
+      [id]: (prev[id] || 0) + 1,
+    }));
+
     setCartOpen(true);
   }
 
   function removeFromCart(id) {
-    setCartIds(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
+    setCart((prev) => {
+      const updated = { ...prev };
+
+      if (updated[id] > 1) {
+        updated[id] -= 1;
+      } else {
+        delete updated[id];
+      }
+
+      return updated;
     });
   }
 
-  function handleCheckout() {
-    if (!customerData.nome || !customerData.telefone || !customerData.endereco) {
-      alert("Preencha todos os dados!");
+  function finalizarCompra() {
+    if (!user) {
+      alert("Faça login para finalizar!");
       return;
     }
 
-    alert("Pedido enviado! (simulação)");
+    if (cartItems.length === 0) {
+      alert("Carrinho vazio!");
+      return;
+    }
 
-    setCheckoutOpen(false);
-    setCartIds(new Set());
+    alert("Pedido finalizado com sucesso!");
+
+    setCart({});
+    localStorage.removeItem("cart_" + user.email);
+    setCartOpen(false);
   }
 
   return (
-    <div className="relative min-h-screen text-green-900">
-      <div className="fixed inset-0 bg-green-50 z-[-1]" />
-
+    <div className="min-h-screen bg-green-50 text-green-900">
       <Header
         search={search}
         setSearch={setSearch}
-        cartCount={cartIds.size}
+        cartCount={Object.values(cart).reduce((a, b) => a + b, 0)}
         onOpenCart={() => setCartOpen(true)}
       />
 
-      <main className="px-6 max-w-md mx-auto space-y-8 pb-16">
+      {/* 🔥 FILTRO CENTRALIZADO */}
+      <div className="px-6 mt-4 flex justify-center">
         <div className="flex gap-2 overflow-x-auto">
-          {CATEGORIES.map(cat => (
+          {CATEGORIES.map((cat) => (
             <button
               key={cat.key}
-              onClick={() => setActiveCategory(cat.key)}
-              className={`px-4 py-2 rounded-full text-sm ${
-                activeCategory === cat.key
+              onClick={() => setCategory(cat.key)}
+              className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition ${
+                category === cat.key
                   ? "bg-emerald-600 text-white"
-                  : "bg-white text-green-800"
+                  : "bg-gray-200 text-gray-700"
               }`}
             >
               {cat.label}
             </button>
           ))}
         </div>
+      </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          {filteredMore.map(item => (
-            <div key={item.id} className="bg-white p-3 rounded-2xl">
-               <img
-                 src={item.image}
-                 className="h-40 w-full rounded-xl cursor-pointer"
-                 onClick={() => setSelectedImage(item.image)}
-                />
-              <p>{item.name}</p>
-              <p>{formatBRL(item.price)}</p>
-              <button
-                onClick={() => addToCart(item.id)}
-                className="w-full bg-emerald-600 text-white py-2 rounded-xl"
-              >
-                Adicionar
-              </button>
-            </div>
-          ))}
-        </div>
+      {/* 🔥 PRODUTOS */}
+      <main className="p-6 max-w-md mx-auto grid grid-cols-2 gap-4">
+        {filteredProducts.map((item) => (
+          <div key={item.id} className="bg-white p-3 rounded-xl shadow">
+            <img
+              src={item.image}
+              onClick={() => setSelectedImage(item.image)}
+              className="h-32 w-full rounded-lg object-cover cursor-pointer hover:scale-105 transition"
+            />
+
+            <p className="text-sm font-medium mt-2">{item.name}</p>
+            <p className="text-xs">{formatBRL(item.price)}</p>
+
+            <button
+              onClick={() => addToCart(item.id)}
+              className="w-full bg-emerald-600 text-white py-2 rounded-lg mt-2 hover:bg-emerald-700"
+            >
+              Adicionar
+            </button>
+          </div>
+        ))}
       </main>
 
-      {/* CARRINHO */}
+      {/* 🔥 MODAL IMAGEM */}
+      <AnimatePresence>
+  {selectedImage && (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      onClick={() => setSelectedImage(null)}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.img
+        src={selectedImage}
+        className="max-w-[90%] max-h-[80%] rounded-xl shadow-xl"
+        initial={{ scale: 0.7, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.7, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()} // 🔥 evita fechar ao clicar na imagem
+      />
+    </motion.div>
+  )}
+</AnimatePresence>
+
+      {/* 🛒 CARRINHO */}
       <AnimatePresence>
         {cartOpen && (
           <>
             <motion.div
-              className="fixed inset-0 bg-black/50 z-50"
+              className="fixed inset-0 bg-black/40"
               onClick={() => setCartOpen(false)}
             />
 
-            <motion.div className="fixed right-0 top-0 h-full w-80 bg-white z-50 p-5 flex flex-col">
-              <h2 className="text-lg font-semibold mb-4">Seu Carrinho</h2>
+            <motion.div
+              className="fixed right-0 top-0 h-full w-80 bg-white p-4 flex flex-col"
+              initial={{ x: 300 }}
+              animate={{ x: 0 }}
+              exit={{ x: 300 }}
+            >
+              <h2 className="text-lg font-bold mb-4">Carrinho</h2>
 
-              <div className="flex-1 overflow-y-auto space-y-3">
-                {cartItems.map(item => (
-                  <div key={item.id} className="flex gap-3 items-center bg-gray-50 p-2 rounded-xl">
-                    <img src={item.image} className="w-14 h-14 rounded-lg" />
+              <div className="flex-1 space-y-4 overflow-y-auto">
+                {cartItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex gap-3 bg-green-50 p-3 rounded-xl"
+                  >
+                    <img
+                      src={item.image}
+                      className="w-16 h-16 rounded-lg object-cover"
+                    />
+
                     <div className="flex-1">
-                      <p>{item.name}</p>
-                      <p>{formatBRL(item.price)}</p>
+                      <p className="text-sm">{item.name}</p>
+                      <p className="text-xs">{formatBRL(item.price)}</p>
+
+                      <div className="flex items-center gap-2 mt-2">
+                        <button
+                          onClick={() => removeFromCart(item.id)}
+                          className="w-6 h-6 bg-green-200 rounded-full"
+                        >
+                          -
+                        </button>
+
+                        <span>{cart[item.id]}</span>
+
+                        <button
+                          onClick={() => addToCart(item.id)}
+                          className="w-6 h-6 bg-green-600 text-white rounded-full"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
-                    <button onClick={() => removeFromCart(item.id)}>X</button>
                   </div>
                 ))}
               </div>
 
-              <div className="border-t pt-4 mt-4">
-                <p>Total: {formatBRL(total)}</p>
+              <div className="mt-4">
+                <p className="font-bold mb-2">
+                  Total: {formatBRL(total)}
+                </p>
 
                 <button
-                  onClick={() => {
-                    setCartOpen(false);
-                    setCheckoutOpen(true);
-                  }}
-                  className="w-full bg-emerald-600 text-white py-2 rounded-xl mt-2"
+                  onClick={finalizarCompra}
+                  className="w-full bg-green-700 text-white py-2 rounded-xl hover:bg-green-800"
                 >
-                  Continuar
+                  Finalizar Pedido
                 </button>
               </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
-
-      {/* CHECKOUT */}
-      <AnimatePresence>
-        {checkoutOpen && (
-          <>
-            <motion.div
-              className="fixed inset-0 bg-black/50 z-50"
-              onClick={() => setCheckoutOpen(false)}
-            />
-
-            <motion.div className="fixed top-1/2 left-1/2 w-[90%] max-w-md bg-white p-6 rounded-2xl z-50 -translate-x-1/2 -translate-y-1/2 space-y-4">
-              <h2 className="text-lg font-semibold">Finalizar Pedido</h2>
-
-              <input
-                placeholder="Nome"
-                className="w-full border p-2 rounded"
-                onChange={e => setCustomerData({ ...customerData, nome: e.target.value })}
-              />
-
-              <input
-                placeholder="Telefone"
-                className="w-full border p-2 rounded"
-                onChange={e => setCustomerData({ ...customerData, telefone: e.target.value })}
-              />
-
-              <input
-                placeholder="Endereço"
-                className="w-full border p-2 rounded"
-                onChange={e => setCustomerData({ ...customerData, endereco: e.target.value })}
-              />
-
-              <button
-                onClick={handleCheckout}
-                className="w-full bg-emerald-600 text-white py-2 rounded-xl"
-              >
-                Confirmar Pedido
-              </button>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-  {selectedImage && (
-        <>
-          <motion.div
-            className="fixed inset-0 bg-black/70 z-50"
-            onClick={() => setSelectedImage(null)}
-          />
-
-          <motion.img
-            src={selectedImage}
-            className="fixed top-1/2 left-1/2 max-w-[90%] max-h-[90%] z-50 rounded-2xl"
-            style={{ transform: "translate(-50%, -50%)" }}
-          />
-        </>
-      )}
-    </AnimatePresence>
     </div>
   );
 }
